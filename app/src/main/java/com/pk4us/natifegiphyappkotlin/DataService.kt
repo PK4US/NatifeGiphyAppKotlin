@@ -5,5 +5,5 @@ import retrofit2.http.GET
 
 interface DataService {
     @GET("gifs/trending?api_key=Ke8WRRGTENw3XCtrnYgFqyct2xEK6NEP")
-    fun getGifts(): Call<DataResult>
+    fun getGifs(): Call<DataResult>
 }
