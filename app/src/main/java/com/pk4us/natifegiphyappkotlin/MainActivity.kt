@@ -1,6 +1,6 @@
 package com.pk4us.natifegiphyappkotlin
 
-import android.annotation.SuppressLint
+import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
@@ -9,6 +9,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -17,10 +18,15 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -47,90 +53,162 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            var gifs by remember { mutableStateOf<List<String>>(emptyList()) }
+            NatifeGiphyAppKotlinTheme {
+                Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    color = MaterialTheme.colorScheme.background
+                ) {
+                    ScreenMain(context = this)
+                }
+            }
+        }
+    }
 
-            // retrofit
+    @OptIn(ExperimentalMaterial3Api::class)
+    @Composable
+    fun ScreenMain(context: Context) {
+        val trendingGifsState = remember { mutableStateOf<List<String>>(emptyList()) }
+        val searchGifsState = remember { mutableStateOf<List<String>>(emptyList()) }
+        var searchText by remember { mutableStateOf("") }
+
+        fun searchGifs(query: String) {
             val retrofit = Retrofit.Builder().baseUrl(BASE_URL)
                 .addConverterFactory(GsonConverterFactory.create()).build()
 
-            // service
             val retroService = retrofit.create(DataService::class.java)
-            retroService.getGifs().enqueue(object : Callback<DataResult?> {
-                @SuppressLint("NotifyDataSetChanged")
+            retroService.searchGifs(query).enqueue(object : Callback<DataResult?> {
                 override fun onResponse(
                     call: Call<DataResult?>, response: Response<DataResult?>
                 ) {
                     val body = response.body()
                     if (body == null) {
                         Log.d(TAG, "onResponse: No response...")
+                        return
                     }
 
                     if (response.isSuccessful) {
                         val gifUrls =
                             response.body()?.res?.map { it.images.ogImage.url } ?: emptyList()
-                        gifs = gifUrls
+                        searchGifsState.value = gifUrls
                     } else {
                         Log.d(TAG, "onResponse: No response...")
                     }
                 }
 
                 override fun onFailure(call: Call<DataResult?>, t: Throwable) {
+                    Log.e(TAG, "onFailure: ${t.message}", t)
                 }
             })
+        }
 
-            NatifeGiphyAppKotlinTheme {
-                Surface(
-                    modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background
+        fun getTrendingGifs() {
+            val retrofit = Retrofit.Builder().baseUrl(BASE_URL)
+                .addConverterFactory(GsonConverterFactory.create()).build()
+
+            val retroService = retrofit.create(DataService::class.java)
+            retroService.getGifs().enqueue(object : Callback<DataResult?> {
+                override fun onResponse(
+                    call: Call<DataResult?>, response: Response<DataResult?>
                 ) {
-                    GifListScreen(images = gifs) { selectedGifUrl ->
-                        val intent = Intent(this@MainActivity, SecondActivity::class.java)
-                        intent.putExtra(SecondActivity.GIF_URL, selectedGifUrl)
-                        startActivity(intent)
+                    val body = response.body()
+                    if (body == null) {
+                        Log.d(TAG, "onResponse: No response...")
+                        return
+                    }
+
+                    if (response.isSuccessful) {
+                        val gifUrls =
+                            response.body()?.res?.map { it.images.ogImage.url } ?: emptyList()
+                        trendingGifsState.value = gifUrls
+                    } else {
+                        Log.d(TAG, "onResponse: No response...")
                     }
                 }
-            }
-        }
-    }
-}
 
-@Composable
-fun GifListScreen(images: List<String>, onGifClick: (String) -> Unit) {
-    LazyVerticalGrid(
-        columns = GridCells.Fixed(2),
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(16.dp)
-    ) {
-        items(images) { imageUrl ->
-            GifItem(imageUrl = imageUrl, onGifClick = onGifClick)
-        }
-    }
-}
-
-
-@Composable
-fun GifItem(imageUrl: String, onGifClick: (String) -> Unit) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 4.dp, vertical = 4.dp)
-            .clickable { onGifClick(imageUrl) }
-    ) {
-        val imageLoader = ImageLoader.Builder(LocalContext.current)
-            .components {
-                if (Build.VERSION.SDK_INT >= 28) {
-                    add(ImageDecoderDecoder.Factory())
-                } else {
-                    add(GifDecoder.Factory())
+                override fun onFailure(call: Call<DataResult?>, t: Throwable) {
+                    Log.e(TAG, "onFailure: ${t.message}", t)
                 }
+            })
+        }
+
+        // Загрузка трендовых GIF при запуске приложения
+        LaunchedEffect(Unit) {
+            getTrendingGifs()
+        }
+
+        Column {
+            // Search input
+            OutlinedTextField(
+                value = searchText,
+                onValueChange = {
+                    searchText = it
+                },
+                label = { Text("Search GIFs") },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+            )
+
+            // Search button
+            Button(
+                onClick = {
+                    searchGifs(searchText)
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+            ) {
+                Text(text = "Search")
             }
-            .build()
-        Image(
-            painter = rememberAsyncImagePainter(imageUrl,imageLoader),
-            contentDescription = null,
-            contentScale = ContentScale.Crop,
+
+            GifListScreen(images = if (searchText.isEmpty()) trendingGifsState.value else searchGifsState.value) { selectedGifUrl ->
+                val intent = Intent(context, SecondActivity::class.java)
+                intent.putExtra(SecondActivity.GIF_URL, selectedGifUrl)
+                context.startActivity(intent)
+            }
+        }
+    }
+
+
+    @Composable
+    fun GifListScreen(images: List<String>, onGifClick: (String) -> Unit) {
+        LazyVerticalGrid(
+            columns = GridCells.Fixed(2),
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(16.dp)
+        ) {
+            items(images) { imageUrl ->
+                GifItem(imageUrl = imageUrl, onGifClick = onGifClick)
+            }
+        }
+    }
+
+
+    @Composable
+    fun GifItem(imageUrl: String, onGifClick: (String) -> Unit) {
+        Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(200.dp)
-        )
+                .padding(horizontal = 4.dp, vertical = 4.dp)
+                .clickable { onGifClick(imageUrl) }
+        ) {
+            val imageLoader = ImageLoader.Builder(LocalContext.current)
+                .components {
+                    if (Build.VERSION.SDK_INT >= 28) {
+                        add(ImageDecoderDecoder.Factory())
+                    } else {
+                        add(GifDecoder.Factory())
+                    }
+                }
+                .build()
+            Image(
+                painter = rememberAsyncImagePainter(imageUrl, imageLoader),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(200.dp)
+            )
+        }
     }
 }
