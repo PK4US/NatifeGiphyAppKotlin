@@ -152,7 +152,8 @@ class MainActivity : ComponentActivity() {
             val keyboardController = LocalSoftwareKeyboardController.current
             OutlinedTextField(
                 value = searchText,
-                onValueChange = { searchText = it },
+                onValueChange = { searchText = it
+                    searchGifs(it)},
                 singleLine = true,
                 label = { Text("Search GIFs") },
                 modifier = Modifier
