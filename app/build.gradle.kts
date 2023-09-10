@@ -58,7 +58,7 @@ dependencies {
     implementation ("com.github.bumptech.glide:compose:1.0.0-alpha.5")
     annotationProcessor ("com.github.bumptech.glide:compiler:4.12.0")
     implementation ("androidx.compose.material:material-icons-extended:1.5.0")
-
+    implementation ("androidx.navigation:navigation-compose:2.7.2")
 
     implementation("androidx.core:core-ktx:1.9.0")
     implementation("androidx.activity:activity-compose:1.7.2")

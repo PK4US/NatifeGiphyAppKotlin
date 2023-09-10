@@ -1,4 +1,4 @@
-package com.pk4us.natifegiphyappkotlin
+package com.pk4us.natifegiphyappkotlin.data
 
 import com.google.gson.annotations.SerializedName
 
